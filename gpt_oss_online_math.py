@@ -83,6 +83,8 @@ def build_model(model_name: str):
 def force_finalize_answer_text(text: str) -> str:
     """For GPT-OSS (no <think>), just append 'Final Answer:' cue to force output."""
     base = (text or "").rstrip()
+    if "<|end|><|start|>assistant<|channel|>final<|messagel>" not in base:
+        base = base + "\n<|end|><|start|>assistant<|channel|>final<|messagel>"
     return base + "\nFinal Answer: "
 
 def generate_one_trace_online(model, tokenizer, prompt_ids, temperature: float, top_p: float,

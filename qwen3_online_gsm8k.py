@@ -443,14 +443,14 @@ def main():
     procs = []
     for i, idxs_local in enumerate(parts):
         shard_global = [all_indices[j] for j in idxs_local]
-        p = mp.Process(target=worker_online, args=(args, shard_global, f\"O{i:02d}\", devices[i], s))
+        p = mp.Process(target=worker_online, args=(args, shard_global, f"O{i:02d}", devices[i], s))
         p.start(); procs.append(p)
     for p in procs: p.join()
 
     merged = 0; all_correct = 0; all_total = 0
     with open(args.save_pred, "w", encoding="utf-8") as fout:
         for i in range(len(parts)):
-            pf = f\"{args.save_pred}.online.partO{i:02d}.jsonl\"
+            pf = f"{args.save_pred}.online.partO{i:02d}.jsonl"
             if not os.path.exists(pf): continue
             with open(pf, "r", encoding="utf-8") as fin:
                 for line in fin:
@@ -467,7 +467,7 @@ def main():
     print(f"[ONLINE MERGE] Wrote {merged} lines to {args.save_pred}")
     if all_total > 0:
         acc = all_correct / all_total * 100.0
-        print(f\"[RESULT] Accuracy = {all_correct}/{all_total} = {acc:.2f}%\")
+        print(f"[RESULT] Accuracy = {all_correct}/{all_total} = {acc:.2f}%")
 
 if __name__ == "__main__":
     main()
