@@ -237,6 +237,10 @@ def online_phase(args, tokenizer, model, stop_threshold: float):
             args.topk_conf, args.group_window,
             stop_threshold=stop_threshold
         )
+        if extract_choice(text) is None:
+            m = EXTRACT_RE_BOXED_ONLY.search(text_full)
+            if m:
+                text = text_full[: m.end()]
         ans = extract_choice(text)
         if ans is None:
             forced_prompt = force_finalize_answer_text(text)

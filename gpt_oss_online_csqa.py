@@ -85,6 +85,8 @@ def force_finalize_answer_text(text: str) -> str:
     base = (text or "").rstrip()
     if "<|end|><|start|>assistant<|channel|>final<|messagel>" not in base:
         base = base + "\n<|end|><|start|>assistant<|channel|>final<|messagel>"
+        print(base)
+        exit()
     return base + "\nFinal Answer: "
 
 def generate_one_trace_online(model, tokenizer, prompt_ids, temperature: float, top_p: float,
@@ -237,6 +239,15 @@ def online_phase(args, tokenizer, model, stop_threshold: float):
             args.topk_conf, args.group_window,
             stop_threshold=stop_threshold
         )
+        if extract_choice(text) is None:
+            m = EXTRACT_RE_BOXED_ONLY.search(text_full)
+            if m:
+                text = text_full[: m.end()]
+        
+        if idx < 10:
+            print(f"text full: {text_full}")
+            print(f"text: {text}")
+
         ans = extract_choice(text)
         if ans is None:
             # force-finalize

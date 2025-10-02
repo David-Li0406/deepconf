@@ -285,6 +285,28 @@ def online_phase(args, tokenizer, model, stop_threshold: float):
             args.topk_conf, args.group_window,
             stop_threshold=stop_threshold
         )
+        if not _find_boxed_contents(text):
+            # 在完整输出里找第一个 \boxed{...} 的结束位置，并把截断推进到那里
+            m = re.search(r'\\boxed\s*\{', text_full)
+            if m:
+                # 手动匹配花括号，确保正确找到与 \boxed{ 对应的第一个闭合 }
+                start_brace = m.end() - 1  # 指向 '{'
+                i = start_brace + 1
+                depth = 1
+                while i < len(text_full) and depth > 0:
+                    c = text_full[i]
+                    if c == '{':
+                        depth += 1
+                    elif c == '}':
+                        depth -= 1
+                    i += 1
+                if depth == 0:
+                    text = text_full[:i]  # 包含完整的第一个 \boxed{...}
+        
+        if idx < 10:
+            print(f"text full: {text_full}")
+            print(f"text: {text}")
+                    
         # parse answers
         nums = extract_numbers_from_boxed_after_final_answer(text)
         ans = nums[0] if nums else None

@@ -201,6 +201,24 @@ def generate_one_trace_online(model, tokenizer, prompt_ids, device, args, stop_t
 
         trunc_ids = full_gen_ids[:, :cut_idx]
         text = tokenizer.batch_decode(trunc_ids, skip_special_tokens=True)[0] if cut_idx > 0 else ""
+        
+        if _extract_content(text) is None:
+            # 在完整输出里找第一个 \boxed{.} 的结束位置，并把截断推进到那里
+            m = re.search(r'\\boxed\s*\{', text_full)
+            if m:
+                start_brace = m.end() - 1
+                i = start_brace + 1
+                depth = 1
+                while i < len(text_full) and depth > 0:
+                    c = text_full[i]
+                    if c == '{':
+                        depth += 1
+                    elif c == '}':
+                        depth -= 1
+                    i += 1
+                if depth == 0:
+                    text = text_full[:i]
+        
         ans = extract_answer_with_fallback(text)
         text_full = tokenizer.batch_decode(full_gen_ids, skip_special_tokens=True)[0]
         ans_full = extract_answer_with_fallback(text_full)

@@ -196,6 +196,10 @@ def generate_one_trace_online(model, tokenizer, prompt_ids, device, args, stop_t
 
         trunc_ids = full_gen_ids[:, :cut_idx]
         text = tokenizer.batch_decode(trunc_ids, skip_special_tokens=True)[0] if cut_idx > 0 else ""
+        if extract_choice(text) is None:
+            m = EXTRACT_RE_BOXED_ONLY.search(text_full)
+            if m:
+                text = text_full[: m.end()]
         ans = extract_choice(text)
         text_full = tokenizer.batch_decode(full_gen_ids, skip_special_tokens=True)[0]
         ans_full = extract_choice(text_full)
@@ -267,7 +271,7 @@ def worker_warmup(args, warm_indices, part_name, device_id):
 def worker_online(args, indices, part_name, device_id, stop_threshold):
     if torch.cuda.is_available():
         torch.cuda.set_device(device_id)
-    torch.manual_seed(args.seed + 1024 + int(re.sub(r'\\D', '', str(part_name)) or 0))
+    torch.manual_seed(args.seed)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
@@ -367,49 +371,50 @@ def main():
 
     # ------------------ PHASE 1: dataset-level warm-up ------------------
     random.seed(args.seed)
-    warmup_n = min(args.warmup_n, n_total)
-    warm_indices = random.sample(all_indices, warmup_n)
+    # warmup_n = min(args.warmup_n, n_total)
+    # warm_indices = random.sample(all_indices, warmup_n)
 
-    warm_parts = split_indices(len(warm_indices), n_workers)
+    # warm_parts = split_indices(len(warm_indices), n_workers)
 
     import multiprocessing as mp
     mp.set_start_method("spawn", force=True)
 
-    procs = []
-    for i, idxs_local in enumerate(warm_parts):
-        shard_global = [warm_indices[j] for j in idxs_local]
-        p = mp.Process(target=worker_warmup, args=(args, shard_global, i, devices[i]))
-        p.start()
-        procs.append(p)
-    for p in procs:
-        p.join()
+    # procs = []
+    # for i, idxs_local in enumerate(warm_parts):
+    #     shard_global = [warm_indices[j] for j in idxs_local]
+    #     p = mp.Process(target=worker_warmup, args=(args, shard_global, i, devices[i]))
+    #     p.start()
+    #     procs.append(p)
+    # for p in procs:
+    #     p.join()
 
-    # merge warm-up & collect lowests
-    warm_merge = 0
-    warm_lowests_all = []
-    with open(f"{args.save_pred}.warmup.jsonl", "w", encoding="utf-8") as fout:
-        for i in range(len(warm_parts)):
-            pf = f"{args.save_pred}.warm.partW{i:02d}.jsonl"
-            if os.path.exists(pf):
-                with open(pf, "r", encoding="utf-8") as fin:
-                    for line in fin:
-                        fout.write(line); warm_merge += 1
-        for i in range(len(warm_parts)):
-            sf = f"{args.save_pred}.warm.lowests.partW{i:02d}.jsonl"
-            if os.path.exists(sf):
-                with open(sf, "r", encoding="utf-8") as fin:
-                    for line in fin:
-                        try:
-                            obj = json.loads(line)
-                            warm_lowests_all.extend(obj.get("lowests", []))
-                        except Exception:
-                            pass
-    print(f"[WARM MERGE] Saved {warm_merge} warm-up questions to {args.save_pred}.warmup.jsonl")
+    # # merge warm-up & collect lowests
+    # warm_merge = 0
+    # warm_lowests_all = []
+    # with open(f"{args.save_pred}.warmup.jsonl", "w", encoding="utf-8") as fout:
+    #     for i in range(len(warm_parts)):
+    #         pf = f"{args.save_pred}.warm.partW{i:02d}.jsonl"
+    #         if os.path.exists(pf):
+    #             with open(pf, "r", encoding="utf-8") as fin:
+    #                 for line in fin:
+    #                     fout.write(line); warm_merge += 1
+    #     for i in range(len(warm_parts)):
+    #         sf = f"{args.save_pred}.warm.lowests.partW{i:02d}.jsonl"
+    #         if os.path.exists(sf):
+    #             with open(sf, "r", encoding="utf-8") as fin:
+    #                 for line in fin:
+    #                     try:
+    #                         obj = json.loads(line)
+    #                         warm_lowests_all.extend(obj.get("lowests", []))
+    #                     except Exception:
+    #                         pass
+    # print(f"[WARM MERGE] Saved {warm_merge} warm-up questions to {args.save_pred}.warmup.jsonl")
 
-    s = percentile(warm_lowests_all, 100.0 - args.eta)
-    print(f"[DATASET THRESHOLD] eta={args.eta} → s={s:.6f} (from {len(warm_lowests_all)} traces)")
+    # s = percentile(warm_lowests_all, 100.0 - args.eta)
+    # print(f"[DATASET THRESHOLD] eta={args.eta} → s={s:.6f} (from {len(warm_lowests_all)} traces)")
 
     # ------------------ PHASE 2: one-trace online for ALL ------------------
+    s=19.538345
     parts = split_indices(n_total, n_workers)
 
     procs = []
