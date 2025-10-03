@@ -196,12 +196,12 @@ def generate_one_trace_online(model, tokenizer, prompt_ids, device, args, stop_t
 
         trunc_ids = full_gen_ids[:, :cut_idx]
         text = tokenizer.batch_decode(trunc_ids, skip_special_tokens=True)[0] if cut_idx > 0 else ""
+        text_full = tokenizer.batch_decode(full_gen_ids, skip_special_tokens=True)[0]
         if extract_choice(text) is None:
             m = EXTRACT_RE_BOXED_ONLY.search(text_full)
             if m:
                 text = text_full[: m.end()]
         ans = extract_choice(text)
-        text_full = tokenizer.batch_decode(full_gen_ids, skip_special_tokens=True)[0]
         ans_full = extract_choice(text_full)
         lowest_gc = lowest_group_conf(conf_hist[:cut_idx], args.group_window)
         tokens_used = int(cut_idx)

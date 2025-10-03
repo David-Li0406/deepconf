@@ -238,6 +238,7 @@ def generate_one_trace_online(model, tokenizer, prompt_ids, device, args, stop_t
         trunc_ids = full_gen_ids[:, :cut_idx]
         text = tokenizer.batch_decode(trunc_ids, skip_special_tokens=True)[0] if cut_idx > 0 else ""
         
+        text_full = tokenizer.batch_decode(full_gen_ids, skip_special_tokens=True)[0]
         if not _find_boxed_contents(text):
             # 在完整输出里找第一个 \boxed{...} 的结束位置，并把截断推进到那里
             m = re.search(r'\\boxed\s*\{', text_full)
@@ -258,7 +259,6 @@ def generate_one_trace_online(model, tokenizer, prompt_ids, device, args, stop_t
 
         nums = extract_numbers_from_boxed_after_final_answer(text)
         ans = nums[0] if nums else None
-        text_full = tokenizer.batch_decode(full_gen_ids, skip_special_tokens=True)[0]
         nums_full = extract_numbers_from_boxed_after_final_answer(text_full)
         ans_full = nums_full[0] if nums_full else None
 
@@ -326,7 +326,7 @@ def worker_warmup(args, warm_indices, part_name, device_id):
 def worker_online(args, indices, part_name, device_id, stop_threshold):
     if torch.cuda.is_available():
         torch.cuda.set_device(device_id)
-    torch.manual_seed(args.seed + 1024 + int(re.sub(r'\\D', '', str(part_name)) or 0))
+    torch.manual_seed(args.seed)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(

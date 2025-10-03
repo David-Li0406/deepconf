@@ -209,12 +209,12 @@ def generate_one_trace_online(model, tokenizer, prompt_ids, device, args, stop_t
 
         trunc_ids = full_gen_ids[:, :cut_idx]
         text = tokenizer.batch_decode(trunc_ids, skip_special_tokens=True)[0] if cut_idx > 0 else ""
+        text_full = tokenizer.batch_decode(full_gen_ids, skip_special_tokens=True)[0]
         if extract_choice(text) is None:
             m = EXTRACT_RE_BOXED_ONLY.search(text_full)
             if m:
                 text = text_full[: m.end()]
         final_choice = extract_choice(text)
-        text_full = tokenizer.batch_decode(full_gen_ids, skip_special_tokens=True)[0]
         final_choice_full = extract_choice(text_full)
         lowest_gc = lowest_group_conf(conf_hist[:cut_idx], args.group_window)
         tokens_used = int(cut_idx)
@@ -290,7 +290,7 @@ def worker_online(args, indices, part_name, device_id, stop_threshold):
         torch.cuda.set_device(device_id)
     m = re.search(r'\d+', str(part_name))
     part_idx = int(m.group()) if m else 0
-    torch.manual_seed(args.seed + 1024 + part_idx)
+    torch.manual_seed(args.seed)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
